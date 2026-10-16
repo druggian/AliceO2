@@ -99,6 +99,11 @@ class Detector : public o2::base::DetImpl<Detector>
     Steel,
     Titanium,
     PMT,
+    FDTeflon,
+    FDGlue,
+    FDFiber,
+    FDPMTGlass,
+    FDPhotocathode,
   }; // media IDs used in createMaterials()
 
   /// Add alignable  volumes
@@ -110,6 +115,9 @@ class Detector : public o2::base::DetImpl<Detector>
 
   /// Geometry pointer
   Geometry* mGeometry = nullptr; //!
+
+  /// MC volume ID of the FD prototype scintillator (-1 if the prototype is not built)
+  int mFDScintVolId = -1; //!
 
   /// Transient data about track passing the sensor, needed by ProcessHits()
   struct TrackData {               // this is transient

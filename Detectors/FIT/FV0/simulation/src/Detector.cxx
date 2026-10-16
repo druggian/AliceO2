@@ -14,8 +14,11 @@
 ///
 /// \author Maciej Slupecki, University of Jyvaskyla, Finland
 /// \author Andreas Molander, University of Helsinki, Finland
+/// \author Daniela Ruggiano, Warsaw University of Technology, Poland
 
 #include <TGeoManager.h>
+#include <TGeoMatrix.h>
+#include <TGeoNode.h>
 #include <TLorentzVector.h>
 #include <TString.h>
 #include <TVirtualMC.h>
@@ -25,6 +28,8 @@
 #include "Framework/Logger.h"
 #include "DetectorsBase/Stack.h"
 #include "FV0Base/Geometry.h"
+#include "FV0Simulation/FDPrototype.h"
+#include "FV0Simulation/FDPrototypeParam.h"
 
 using namespace o2::fv0;
 using o2::fv0::Geometry;
@@ -74,6 +79,16 @@ void Detector::InitializeO2Detector()
       LOG(info) << "FV0: Sensitive volume added: " << volSensitive->GetName();
     }
   }
+
+  if (FDPrototypeParam::Instance().enable) {
+    TGeoVolume* volFD = gGeoManager->GetVolume(fdprototype::sensitiveVolumeName);
+    if (!volFD) {
+      LOG(fatal) << "FV0: Can't find FD prototype sensitive volume " << fdprototype::sensitiveVolumeName;
+    }
+    AddSensitiveVolume(volFD);
+    mFDScintVolId = TVirtualMC::GetMC()->VolId(fdprototype::sensitiveVolumeName);
+    LOG(info) << "FV0: Sensitive volume added: " << volFD->GetName() << " (FD prototype, cell ID " << FDPrototypeParam::Instance().cellId << ")";
+  }
 }
 
 Bool_t Detector::ProcessHits(FairVolume* v)
@@ -118,8 +133,10 @@ Bool_t Detector::ProcessHits(FairVolume* v)
     fMC->TrackPosition(positionStop);
     Int_t trackID = fMC->GetStack()->GetCurrentTrackNumber();
 
-    // Get unique ID of the detector cell (sensitive volume)
-    Int_t cellId = mGeometry->getCurrentCellId(fMC);
+    // Get unique ID of the detector cell (sensitive volume); the FD prototype has its own fixed ID
+    Int_t copy;
+    Int_t cellId = (mFDScintVolId >= 0 && fMC->CurrentVolID(copy) == mFDScintVolId) ? FDPrototypeParam::Instance().cellId
+                                                                                    : mGeometry->getCurrentCellId(fMC);
 
     math_utils::Point3D<float> posStart(mTrackData.mPositionStart.X(), mTrackData.mPositionStart.Y(), mTrackData.mPositionStart.Z());
     math_utils::Point3D<float> posStop(positionStop.X(), positionStop.Y(), positionStop.Z());
@@ -210,6 +227,29 @@ void Detector::createMaterials()
   Float_t wPMT[nPMT] = {0.07, 0.02, 0.14, 0.21, 0.11, 0.02, 0.02, 0.04, 0.01, 0.01, 0.00, 0.00, 0.01, 0.34};
   const Float_t dPMT = Geometry::getPmtDensity();
 
+  // FD prototype: Teflon (PTFE, (C2F4)n)
+  const Int_t nTeflon = 2;
+  Float_t aTeflon[nTeflon] = {12.011, 18.998};
+  Float_t zTeflon[nTeflon] = {6, 9};
+  Float_t wTeflon[nTeflon] = {0.24, 0.76};
+  const Float_t dTeflon = 2.20;
+
+  // FD prototype: optical glue (PMMA composition as placeholder) and solid 1 mm fibers (PMMA, not density-smeared)
+  const Float_t dGlue = 1.19;
+  const Float_t dFiberFD = 1.18;
+
+  // FD prototype: PMT window glass (SiO2) and bialkali photocathode (K2CsSb)
+  const Int_t nGlass = 2;
+  Float_t aGlass[nGlass] = {28.0855, 15.9994};
+  Float_t zGlass[nGlass] = {14, 8};
+  Float_t wGlass[nGlass] = {0.4674, 0.5326};
+  const Float_t dGlass = 2.23;
+  const Int_t nPc = 3;
+  Float_t aPc[nPc] = {39.0983, 132.905, 121.76};
+  Float_t zPc[nPc] = {19, 55, 51};
+  Float_t wPc[nPc] = {0.23493, 0.39930, 0.36579};
+  const Float_t dPc = 2.0;
+
   Int_t matId = 0;                  // tmp material id number
   const Int_t unsens = 0, sens = 1; // sensitive or unsensitive medium
 
@@ -264,6 +304,26 @@ void Detector::createMaterials()
   o2::base::Detector::Medium(PMT, "PMT$", matId, unsens, fieldType, maxField,
                              tmaxfd, stemax, deemax, epsil, stmin);
 
+  o2::base::Detector::Mixture(++matId, "FDTeflon$", aTeflon, zTeflon, dTeflon, nTeflon, wTeflon);
+  o2::base::Detector::Medium(FDTeflon, "FDTeflon$", matId, unsens, fieldType, maxField,
+                             tmaxfd, stemax, deemax, epsil, stmin);
+
+  o2::base::Detector::Mixture(++matId, "FDGlue$", aPlast, zPlast, dGlue, nPlast, wPlast);
+  o2::base::Detector::Medium(FDGlue, "FDGlue$", matId, unsens, fieldType, maxField,
+                             tmaxfd, stemax, deemax, epsil, stmin);
+
+  o2::base::Detector::Mixture(++matId, "FDFiber$", aPlast, zPlast, dFiberFD, nPlast, wPlast);
+  o2::base::Detector::Medium(FDFiber, "FDFiber$", matId, unsens, fieldType, maxField,
+                             tmaxfd, stemax, deemax, epsil, stmin);
+
+  o2::base::Detector::Mixture(++matId, "FDPMTGlass$", aGlass, zGlass, dGlass, nGlass, wGlass);
+  o2::base::Detector::Medium(FDPMTGlass, "FDPMTGlass$", matId, unsens, fieldType, maxField,
+                             tmaxfd, stemax, deemax, epsil, stmin);
+
+  o2::base::Detector::Mixture(++matId, "FDPhotocathode$", aPc, zPc, dPc, nPc, wPc);
+  o2::base::Detector::Medium(FDPhotocathode, "FDPhotocathode$", matId, unsens, fieldType, maxField,
+                             tmaxfd, stemax, deemax, epsil, stmin);
+
   LOG(debug) << "FV0 Detector::createMaterials(): matId = " << matId;
 }
 
@@ -279,6 +339,24 @@ void Detector::ConstructGeometry()
   // mGeometry->enableComponent(Geometry::eRods, false);
   // mGeometry->enableComponent(Geometry::eAluminiumContainer, false);
   mGeometry->buildGeometry();
+
+  // FD prototype, installed at the end of data taking in front of FDD-A. Placed in caveRB24 like FDD-A;
+  // the parameters give the box centre in the global frame.
+  const auto& fdParam = FDPrototypeParam::Instance();
+  if (fdParam.enable) {
+    TGeoVolume* caveRB24 = gGeoManager->GetVolume("caveRB24");
+    TGeoNode* caveRB24Node = gGeoManager->GetTopVolume()->FindNode("caveRB24_1");
+    if (!caveRB24 || !caveRB24Node) {
+      LOG(fatal) << "FV0: caveRB24 not found, can't place the FD prototype";
+    }
+    const double zRB24 = caveRB24Node->GetMatrix()->GetTranslation()[2];
+    auto* rot = new TGeoRotation("FDPROTO_ROT");
+    rot->RotateX(fdParam.rotX);
+    rot->RotateY(fdParam.rotY);
+    rot->RotateZ(fdParam.rotZ);
+    caveRB24->AddNode(fdprototype::build(), 1, new TGeoCombiTrans(fdParam.x, fdParam.y, fdParam.z - zRB24, rot));
+    LOG(info) << "FV0: FD prototype placed at (" << fdParam.x << ", " << fdParam.y << ", " << fdParam.z << ") cm";
+  }
 }
 
 void Detector::addAlignableVolumes() const

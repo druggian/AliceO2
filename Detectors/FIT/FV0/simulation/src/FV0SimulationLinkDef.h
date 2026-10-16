@@ -19,5 +19,7 @@
 #pragma link C++ class o2::base::DetImpl < o2::fv0::Detector> + ;
 #pragma link C++ class o2::fv0::Digitizer + ;
 #pragma link C++ class o2::fv0::FV0DigParam + ;
+#pragma link C++ class o2::fv0::FDPrototypeParam + ;
+#pragma link C++ class o2::conf::ConfigurableParamHelper < o2::fv0::FDPrototypeParam> + ;
 
 #endif
