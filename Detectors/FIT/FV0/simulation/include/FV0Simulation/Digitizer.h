@@ -21,6 +21,7 @@
 #include "FV0Base/Constants.h"
 #include "SimulationDataFormat/MCTruthContainer.h"
 #include "FV0Simulation/DigitizationConstant.h"
+#include "FV0Simulation/FDPrototypeParam.h"
 #include <array>
 #include <vector>
 
@@ -119,6 +120,7 @@ class Digitizer
                std::vector<o2::fv0::DetTrigInput>& digitsTrig,
                o2::dataformats::MCTruthContainer<o2::fv0::MCLabel>& labels);
   bool isRing5(int detID);
+  bool isNotFDPrototype(int detID) { return detID != FDPrototypeParam::Instance().cellId; }
 
   std::array<std::vector<Float_t>, Constants::nFv0Channels> mPmtChargeVsTime; // Charge time series aka analogue signal pulse from PM
   UInt_t mNBins;                                                              //

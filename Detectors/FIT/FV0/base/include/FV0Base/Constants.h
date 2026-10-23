@@ -29,7 +29,7 @@ struct Constants {
   static constexpr int nPms = 6;            // Number of processing modules (PMs); 1 PM per ring, 2 PMs needed for ring 5
   static constexpr int nTcms = 1;           // Number of trigger and clock modules (TCMs)
   static constexpr int nGbtLinks = nPms + nTcms;
-  static constexpr int nFv0Channels = Geometry::getNumberOfReadoutChannels();
+  static constexpr int nFv0Channels = Geometry::getNumberOfReadoutChannels() + 1;
   static constexpr int nFv0ChannelsPlusRef = nFv0Channels + 1;
 };
 
