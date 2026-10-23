@@ -17,7 +17,6 @@
 #include "FV0Base/Geometry.h"
 #include "FV0Base/Constants.h"
 #include "TF1Convolution.h"
-
 ClassImp(o2::fv0::Digitizer);
 
 using namespace o2::math_utils;
@@ -110,13 +109,13 @@ void Digitizer::process(const std::vector<o2::fv0::Hit>& hits,
       continue;
     }
     float distanceFromXc = 0;
-    if (Geometry::instance()->isRing5(detId)) {
+    if (Geometry::instance()->isRing5(detId) && isNotFDPrototype(detId)) {
       distanceFromXc = getDistFromCellCenter(detId, hit.GetX(), hit.GetY());
     }
 
     int iChannelPerCell = 0;
     while (iChannelPerCell < 2) { // loop over 2 channels, into which signal from each cell in ring 5 is split
-      if (Geometry::instance()->isRing5(detId)) {
+      if (Geometry::instance()->isRing5(detId) && isNotFDPrototype(detId)) {
         // The first channel number is located counter-clockwise from the cell center
         // and remains identical to the detector number, the second one is clockwise and incremented by 8
         if (iChannelPerCell == 1) {
@@ -461,7 +460,7 @@ o2::fv0::Digitizer::BCCache* Digitizer::getBCCache(const o2::InteractionRecord& 
 
 bool Digitizer::isRing5(int detID)
 {
-  if (detID > 31) {
+  if (detID > 31 && isNotFDPrototype(detID)) {
     return true;
   } else {
     return false;
